@@ -22,12 +22,94 @@
             bottom: 0;
             width: 100%;
         }
+
+        .popup-main {
+            border: 1px solid #ccc;
+            padding: 5px;
+            margin: 5px;
+        }
+
+
+        .map-overlay {
+            font: bold 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+            position: absolute;
+            width: 30%;
+            top: 0;
+            left: 0;
+            padding: 10px;
+        }
+
+        .map-overlay .map-overlay-inner {
+            background-color: #fff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .map-overlay label {
+            display: flex;
+            margin: 0 0 10px;
+            width: fit-content;
+        }
+
+        .map-overlay #slider {
+            background-color: transparent;
+            display: inline-block;
+            width: 100%;
+            position: relative;
+            margin: 0;
+            cursor: ew-resize;
+        }
+
+        .square-container {
+            display: flex;
+            height: 35px;
+            width: 10%;
+            flex-direction: column;
+        }
+
+        .square-text {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .square {
+            display: flex;
+            height: 20px;
+        }
+
+        #legend {
+            display: flex;
+        }
     </style>
 </head>
 
 <body>
+
     <div id="map"></div>
+    <div class="map-overlay top">
+        <div class="map-overlay-inner">
+            <label>Layer opacity: <span id="slider-value">100%</span></label>
+            <input id="slider" type="range" min="0" max="100" step="0" value="50">
+            <label>Borders: <input id="borders" type="checkbox" checked></label>
+            <div id="legend"></div>
+        </div>
+
+    </div>
+
     <script>
+
+        const legendDiv = document.getElementById('legend');
+        const bordersCheckbox = document.getElementById('borders');
+        const slider = document.getElementById('slider');
+        const sliderValue = document.getElementById('slider-value');
+        const layerName = 'electric-retail-service-terri-c0krej'
+
+        const mainData = {
+            sprData: []
+        }
 
         mapboxgl.accessToken = 'pk.eyJ1Ijoic3dlcnQiLCJhIjoiY2s3bHNtdjF2MDJ1eTNmcGowanU5MHR4ZiJ9.hzhWj9bhgD5itpWAPc3nNA';
         const map = new mapboxgl.Map({
@@ -41,43 +123,21 @@
 
         map.on('load', () => {
 
-
-            // Promise.all([
-            //     d3.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vRJl3kVNDkwcixR99TBWBAvNtitzbGSSWiED75UD85wyKM0pVPJkeJ8mHTTbNuZB4l1oqPwls9OdfpO/pub?output=csv"),
-            //     fetch("Electric_Retail_Service_Territories.geojson").then(data => data.json())
-            // ]).then(data => {
-            //     console.log('data', data);
-            //     const [sprData, mapData] = data
-            //     const avrPrice = sprData.map(d => +d['Average Price (cents/kWh)'])
-            //     const namesSpr = sprData.map(d => clear(d.Entity))
-            //     const namesMap = [...new Set(mapData.features.map(d => clear(d.properties.NAME)))].sort()
-            //     const intersection = namesSpr.filter(element => namesMap.includes(element));
-            //     // const nonIntersection = namesSpr.filter(element => !namesMap.includes(element));
-            //     console.log('namesMap', namesMap);
-            //     const missed = namesSpr.filter(el => !intersection.includes(el))
-            //     console.log('missed data', new Set(missed));
-            //     //map.getSource("maine").setData(mapData)
-            //     map.setFilter('electric-retail-service-terri-c0krej', [
-            //         'all',
-            //         ['match', ['get', 'NAME'], "PACIFICORP", "red", "gray"],
-            //     ]);
-            // })
-
             Promise.all([
                 d3.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vRJl3kVNDkwcixR99TBWBAvNtitzbGSSWiED75UD85wyKM0pVPJkeJ8mHTTbNuZB4l1oqPwls9OdfpO/pub?output=csv"),
             ]).then(data => {
                 console.log('data', data);
                 const [sprData, mapData] = data
+
+                mainData.sprData.push(...sprData)
+
                 const avrPrice = sprData.map(d => +d['Average Price (cents/kWh)']).filter(d => !isNaN(d))
                 const namesSpr = sprData.map(d => clear(d.Entity))
-
-
                 const min = Math.min(...avrPrice)
                 const max = Math.max(...avrPrice)
-
-                console.log('min, max', min, max);
-
                 const myColor = d3.scaleLinear().domain([min, max]).range(["orange", "red"])
+
+                generateLegend(min, max, legendDiv, myColor)
 
                 const filtersArray = []
                 sprData
@@ -86,50 +146,126 @@
                         const filter = [['==', ['get', "NAME"], d.Entity.toUpperCase()], myColor(+d['Average Price (cents/kWh)'])]
                         filtersArray.push(...filter)
                     })
-
-                map.setPaintProperty("electric-retail-service-terri-c0krej", "fill-color", [
+                map.setPaintProperty(layerName, "fill-color", [
                     'case',
                     ...filtersArray,
-                    "gray"
+                    "transparent"
                 ])
-                map.setPaintProperty("electric-retail-service-terri-c0krej", "fill-opacity", 0.5)
+                map.setPaintProperty(layerName, "fill-opacity", 0.5)
+                map.setPaintProperty(layerName, "fill-outline-color", "white")
+                //map.setPaintProperty(layerName, "fill-outline-color", "transparent")
+            })
+
+
+            map.on("click", layerName, e => {
+                console.log('e', e);
+                const features = map.queryRenderedFeatures(e.point);
+                const names = features.map((feat) => {
+                    return feat.properties.NAME;
+                });
+                const uniqueNames = [...new Set(names)]
+                console.log('uniqueNames', uniqueNames);
+
+                const descr = uniqueNames
+                    .filter(name => name)
+                    .map(name => {
+
+                        console.log('name', name);
+                        const res = mainData.sprData
+                            .filter(spr => spr.Entity && spr.Entity !== "")
+                            .find(spr => clear(spr.Entity) === clear(name))
+
+                        const text = res ? `
+                        <div class="popup-main">
+                            <div><b>${res['Entity']}</b></div>
+                            <div>Customers (Count): ${res['Customers (Count)']}</div>
+                            <div>Ownership: ${res['Ownership']}</div>
+                            <div>Sales (Megawatthours): ${res['Sales (Megawatthours)']}</div>
+                            <div>Average Price (cents/kWh): ${res['Average Price (cents/kWh)']}</div>
+                        </div>
+                            `
+                            :
+                            `
+                        <div class="popup-main">
+                            <div><b>${name}</b></div>
+                            <div>NO DATA</div>
+                        </div>
+                        `
+
+                        return text
+                    }).join("")
+
+                // Copy coordinates array.
+                new mapboxgl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(descr)
+                    .addTo(map);
+
+
+            })
+            map.on('mouseenter', layerName, () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            // Change it back to a pointer when it leaves.
+            map.on('mouseleave', layerName, () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            bordersCheckbox.addEventListener('input', (e) => {
+                const val = bordersCheckbox.checked ? "white" : "transparent"
+                map.setPaintProperty(layerName, "fill-outline-color", val)
+            })
+
+            slider.addEventListener('input', (e) => {
+                map.setPaintProperty(
+                    layerName,
+                    'fill-opacity',
+                    parseInt(e.target.value, 10) / 100
+                );
+
+                // Value indicator
+                sliderValue.textContent = e.target.value + '%';
+            });
+
+        });
+
+        function generateLegend(min, max, legendDiv, colorFunc) {
+
+            console.log('min,max', min, max);
+
+            const step = max / 10
+
+            const divs = [...Array(10).keys()].map((d, key) => {
+
+                const val = 10 * (key + 1)
+
+                const div = document.createElement("div")
+                div.className = "square-container"
+                div.style.borderLeft = "1px solid black"
+
+                const text = document.createElement("div")
+                text.className = "square-text"
+                text.innerText = val
+
+                const sq = document.createElement("div")
+                sq.className = "square"
+                sq.style.backgroundColor = colorFunc(val)
+
+                div.appendChild(sq)
+                div.appendChild(text)
+
+                legendDiv.appendChild(div)
+                return div
             })
 
 
 
-
-            // Add a data source containing GeoJSON data.
-            map.addSource('maine', {
-                'type': 'geojson',
-                'data': { type: 'FeatureCollection', features: Array(0) }
-            });
-
-            // Add a new layer to visualize the polygon.
-            map.addLayer({
-                'id': 'maine',
-                'type': 'fill',
-                'source': 'maine', // reference the data source
-                'layout': {},
-                'paint': {
-                    'fill-color': '#0080ff', // blue color fill
-                    'fill-opacity': 0.5
-                }
-            });
-            // Add a black outline around the polygon.
-            map.addLayer({
-                'id': 'outline',
-                'type': 'line',
-                'source': 'maine',
-                'layout': {},
-                'paint': {
-                    'line-color': '#000',
-                    'line-width': 1
-                }
-            });
-        });
-
+        }
 
         function clear(str) {
+            // console.log('str', str);
+            if (!str) return "";
             return str.replaceAll(/[\,\.]/g, " ").replace(/[\s]{2,}/, " ").trim().toLowerCase()
         }
 
