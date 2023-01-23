@@ -98,11 +98,9 @@
             <label>Borders: <input id="borders" type="checkbox" checked></label>
             <div id="legend"></div>
         </div>
-
     </div>
-
+    
     <script>
-
         const legendDiv = document.getElementById('legend');
         const bordersCheckbox = document.getElementById('borders');
         const slider = document.getElementById('slider');
@@ -241,13 +239,10 @@
         function generateLegend(min, max, legendDiv, colorFunc) {
 
             console.log('min,max', min, max);
-
             const step = max / 10
-
             const divs = [...Array(10).keys()].map((d, key) => {
 
                 const val = (step * (key + 1)).toFixed()
-
                 const div = document.createElement("div")
                 div.className = "square-container"
 
@@ -265,8 +260,6 @@
                 legendDiv.appendChild(div)
                 return div
             })
-
-
 
         }
 

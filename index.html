@@ -9,11 +9,13 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,600,300" rel="stylesheet" type="text/css">
 
     <style>
         body {
             margin: 0;
             padding: 0;
+            font: normal 12px/20px 'Open Sans';
         }
 
         #map {
@@ -23,15 +25,18 @@
             width: 100%;
         }
 
+        .mapboxgl-map {
+            font: inherit !important;
+        }
+
         .popup-main {
-            border: 1px solid #ccc;
+            /* border: 1px solid #ccc; */
             padding: 5px;
             margin: 5px;
         }
 
 
         .map-overlay {
-            font: bold 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
             position: absolute;
             width: 30%;
             top: 0;
@@ -47,11 +52,6 @@
             margin-bottom: 10px;
         }
 
-        .map-overlay label {
-            display: flex;
-            margin: 0 0 10px;
-            width: fit-content;
-        }
 
         .map-overlay #slider {
             background-color: transparent;
@@ -83,6 +83,15 @@
         #legend {
             display: flex;
         }
+
+        .checkbox-container {
+            display: flex;
+            margin-top: 5px;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: center;
+        }
     </style>
 </head>
 
@@ -95,12 +104,13 @@
             <input id="slider" type="range" min="0" max="100" step="0" value="50">
             <label>Borders: <input id="borders" type="checkbox" checked></label>
             <div id="legend"></div>
+            <div id="filters"></div>
         </div>
 
     </div>
 
     <script>
-
+        const filtersDiv = document.getElementById('filters');
         const legendDiv = document.getElementById('legend');
         const bordersCheckbox = document.getElementById('borders');
         const slider = document.getElementById('slider');
@@ -108,7 +118,8 @@
         const layerName = 'electric-retail-service-terri-c0krej'
 
         const mainData = {
-            sprData: []
+            sprData: [],
+            filters: new Set()
         }
 
         mapboxgl.accessToken = 'pk.eyJ1Ijoic3dlcnQiLCJhIjoiY2s3bHNtdjF2MDJ1eTNmcGowanU5MHR4ZiJ9.hzhWj9bhgD5itpWAPc3nNA';
@@ -128,6 +139,8 @@
             ]).then(data => {
                 console.log('data', data);
                 const [sprData, mapData] = data
+
+                buildOwnershipFilters(sprData)
 
                 mainData.sprData.push(...sprData)
 
@@ -161,6 +174,7 @@
                 console.log('e', e);
                 const features = map.queryRenderedFeatures(e.point);
                 const names = features.map((feat) => {
+                    console.log('feat.properties.TYPE===>', feat.properties.TYPE);
                     return feat.properties.NAME;
                 });
                 const uniqueNames = [...new Set(names)]
@@ -223,23 +237,49 @@
                     'fill-opacity',
                     parseInt(e.target.value, 10) / 100
                 );
-
                 // Value indicator
                 sliderValue.textContent = e.target.value + '%';
             });
 
         });
 
+        function buildOwnershipFilters(data) {
+
+            const uniqueNames = [...new Set(data.map(d => d.Ownership.toUpperCase()).filter(d => d !== ""))]
+            console.log('uniqueNames', uniqueNames);
+            uniqueNames.forEach(d => {
+                mainData.filters.add(d)
+
+                const div = document.createElement("div")
+                div.className = "checkbox-container"
+                const input = document.createElement("input")
+                input.type = "checkbox"
+                input.className = "checkbox"
+                input.id = d
+                input.checked = true
+                input.addEventListener('input', (e) => {
+                    console.log('input', input.checked);
+                    mainData.filters.has(d) ? mainData.filters.delete(d) : mainData.filters.add(d)
+                    map.setFilter(layerName, ["in", "TYPE", ...mainData.filters]);
+                })
+
+                const label = document.createElement("label")
+                label.htmlFor = d
+                label.innerText = d
+
+                div.appendChild(input)
+                div.appendChild(label)
+                filtersDiv.appendChild(div)
+                // return div
+            })
+        }
+
         function generateLegend(min, max, legendDiv, colorFunc) {
 
             console.log('min,max', min, max);
-
             const step = max / 10
-
             const divs = [...Array(10).keys()].map((d, key) => {
-
                 const val = 10 * (key + 1)
-
                 const div = document.createElement("div")
                 div.className = "square-container"
                 div.style.borderLeft = "1px solid black"
@@ -258,9 +298,6 @@
                 legendDiv.appendChild(div)
                 return div
             })
-
-
-
         }
 
         function clear(str) {
