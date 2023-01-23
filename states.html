@@ -93,13 +93,13 @@
     <div id="map"></div>
     <div class="map-overlay top">
         <div class="map-overlay-inner">
-            <label>Layer opacity: <span id="slider-value">80%</span></label>
-            <input id="slider" type="range" min="0" max="100" step="0" value="80">
+            <label>Layer opacity: <span id="slider-value">100%</span></label>
+            <input id="slider" type="range" min="0" max="100" step="0" value="100">
             <label>Borders: <input id="borders" type="checkbox" checked></label>
             <div id="legend"></div>
         </div>
     </div>
-    
+
     <script>
         const legendDiv = document.getElementById('legend');
         const bordersCheckbox = document.getElementById('borders');
@@ -142,7 +142,7 @@
 
             Promise.all([
                 d3.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vT_idWhAJ_8qbUs4my2Am-A8B5FOP-M3of5JlG8Rba56-2d_L4I1ZLUVsSdSH-TiuHTqOOl5V99VYtj/pub?output=csv"),
-                fetch("states_geojson_small.json").then(data => data.json())
+                fetch("s_22mr22.json").then(data => data.json())
             ]).then(data => {
 
                 console.log('data', data);
@@ -163,7 +163,7 @@
                 sprData
                     .filter(d => !isNaN(+d['Total']) && +d['Total'] > 0)
                     .map(d => {
-                        const filter = [['==', ['get', "STUSPS"], d.State], myColor(+d['Total'])]
+                        const filter = [['==', ['get', "STATE"], d.State], myColor(+d['Total'])]
                         filtersArray.push(...filter)
                     })
                 map.setPaintProperty(layerName, "fill-color", [
@@ -171,7 +171,7 @@
                     ...filtersArray,
                     "transparent"
                 ])
-                map.setPaintProperty(layerName, "fill-opacity", 0.8)
+                map.setPaintProperty(layerName, "fill-opacity", 1)
                 //map.setPaintProperty(layerName, "fill-outline-color", "white")
                 //map.setPaintProperty(layerName, "fill-outline-color", "transparent")
             })
@@ -180,7 +180,7 @@
                 console.log('e', e);
                 console.log('e', e.features[0]);
 
-                const stateISO = e.features[0].properties.STUSPS
+                const stateISO = e.features[0].properties.STATE
                 const stateName = e.features[0].properties.NAME
 
                 const res = mainData.sprData
@@ -239,20 +239,22 @@
         function generateLegend(min, max, legendDiv, colorFunc) {
 
             console.log('min,max', min, max);
-            const step = max / 10
-            const divs = [...Array(10).keys()].map((d, key) => {
+            const step = 500
+            const stepCount = Math.ceil(max / 500)
+            const divs = [...Array(stepCount).keys()].map((d, key) => {
 
-                const val = (step * (key + 1)).toFixed()
+                console.log('key', key);
+                const val = (1 + step * key).toFixed()
                 const div = document.createElement("div")
                 div.className = "square-container"
 
                 const text = document.createElement("div")
                 text.className = "square-text"
-                text.innerText = val
+                text.innerText = (step * (key + 1)) > max ? `${val}+` : `${val}-${step * (key + 1)}`
 
                 const sq = document.createElement("div")
                 sq.className = "square"
-                sq.style.backgroundColor = colorFunc(val)
+                sq.style.backgroundColor = colorFunc(step * key)
 
                 div.appendChild(sq)
                 div.appendChild(text)
