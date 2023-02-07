@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Est. Monthly Savings Driving an EV vs. ICE Vehicle, Five-Year Ownership</title>
+    <title>State EV Scorecard Results</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.js"></script>
@@ -111,25 +111,32 @@
     <div id="map"></div>
     <div class="map-overlay top">
         <div class="map-overlay-inner">
-            <h3>Est. Monthly Savings Driving an EV vs. ICE Vehicle, Five-Year Ownership</h3>
+            <h3>State EV Scorecard Results</h3>
             <div class="legend-container">
-                Savings / Month (DG+)
+                Q1 2023 Rankings (DG+)
                 <div id="legend"></div>
             </div>
-            <label>Borders: <input id="borders" type="checkbox" checked></label>
+
         </div>
     </div>
 
     <script>
         const legendDiv = document.getElementById('legend');
-        const bordersCheckbox = document.getElementById('borders');
         const slider = document.getElementById('slider');
         const sliderValue = document.getElementById('slider-value');
         const layerName = 'states-layer'
-
         const mainData = {
             sprData: []
         }
+
+        const fixedColors = [
+            { from: 1, to: 10, color: "#47b970" },
+            { from: 11, to: 20, color: "#b3d92b" },
+            { from: 21, to: 30, color: "#d9ec95" },
+            { from: 31, to: 40, color: "#bcbec0" },
+            { from: 41, to: 51, color: "#e5e5e5" },
+            { from: 52, to: 1000, color: "#eee" },
+        ]
 
         mapboxgl.accessToken = 'pk.eyJ1Ijoic3dlcnQiLCJhIjoiY2s3bHNtdjF2MDJ1eTNmcGowanU5MHR4ZiJ9.hzhWj9bhgD5itpWAPc3nNA';
         const map = new mapboxgl.Map({
@@ -189,18 +196,9 @@
                         }
                     }
                 });
-                console.log('mapData', mapData);
-                map.getSource("states").setData(mapData)
 
-                // map.setPaintProperty(layerName, "fill-color", [
-                //     'case',
-                //     ...filtersArray,
-                //     "transparent"
-                // ])
-
-                // map.setPaintProperty(layerName, "fill-opacity", 0.7)
-                //map.setPaintProperty(layerName, "fill-outline-color", "white")
-                //map.setPaintProperty(layerName, "fill-outline-color", "transparent")
+                const noPR = mapData.features.filter(el => el.properties.NAME !== 'Puerto Rico' && el.properties.NAME !== 'Virgin Islands')
+                map.getSource("states").setData(turf.featureCollection(noPR))
             })
 
             map.on("click", layerName, e => {
@@ -211,13 +209,6 @@
 
                 const res = mainData.sprData
                     .find(spr => spr.State === stateISO)
-
-                // const value = (+res['Total']).toLocaleString('en-US', {
-                //     style: 'currency',
-                //     currency: 'USD',
-                // }).replace("$", "")
-
-                console.log('props', props);
 
                 const text = `
                         <div class="popup-main">
@@ -251,65 +242,34 @@
                 map.getCanvas().style.cursor = '';
             });
 
-            bordersCheckbox.addEventListener('input', (e) => {
-                const val = bordersCheckbox.checked ? "white" : "transparent"
-                map.setPaintProperty(layerName, "fill-outline-color", val)
-            })
-
-            // slider.addEventListener('input', (e) => {
-            //     map.setPaintProperty(
-            //         layerName,
-            //         'fill-opacity',
-            //         parseInt(e.target.value, 10) / 100
-            //     );
-            //     // Value indicator
-            //     sliderValue.textContent = e.target.value + '%';
-            // });
-
         });
 
         function generateLegend(min, max, legendDiv, colorFunc) {
 
-            console.log('min,max', min, max);
+            fixedColors.forEach(d => {
 
-            const step = 10
-            const stepCount = Math.ceil(max / step)
-            const divs = [...Array(stepCount).keys()].map((d, key) => {
+                if (max < d.to) return;
 
-                console.log('key', key, stepCount, (step * key));
-                if ((step * key + 1) < min) return;
-
-                const val = (1 + step * key).toFixed()
                 const div = document.createElement("div")
                 div.className = "square-container"
 
                 const text = document.createElement("div")
                 text.className = "square-text"
-                text.innerText = (step * (key + 1)) > max ? `${val} + ` : `${val} - ${step * (key + 1)}`
+                text.innerText = `${d.from} - ${d.to}`
 
                 const sq = document.createElement("div")
                 sq.className = "square"
-                sq.style.backgroundColor = colorFunc(val)
-                //sq.style.opacity = 0.7
+                sq.style.backgroundColor = d.color
 
                 div.appendChild(sq)
                 div.appendChild(text)
 
                 legendDiv.appendChild(div)
-                return div
             })
-
         }
 
         function fixedColor(val) {
             console.log('val', val);
-            const fixedColors = [
-                { from: 1, to: 10, color: "#47b970" },
-                { from: 11, to: 20, color: "#B3d92b" },
-                { from: 21, to: 30, color: "#B3d92b" },
-                { from: 31, to: 40, color: "#231f20" },
-                { from: 41, to: 51, color: "#231f20" },
-            ]
             return fixedColors.find(f => f.from <= val && f.to >= val).color
         }
 

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Est. Monthly Savings Driving an EV vs. ICE Vehicle, Five-Year Ownership</title>
+    <title>Monthly Savings Driving an EV vs. ICE Vehicle, Five-Year Ownership</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.12.0/mapbox-gl.js"></script>
@@ -109,18 +109,16 @@
     <div id="map"></div>
     <div class="map-overlay top">
         <div class="map-overlay-inner">
-            <h3>Est. Monthly Savings Driving an EV vs. ICE Vehicle, Five-Year Ownership</h3>
+            <h3>Monthly Savings Driving an EV vs. ICE Vehicle, Five-Year Ownership</h3>
             <div class="legend-container">
-                Savings / Month (DG+)
+                Est. Savings / Month (DG+)
                 <div id="legend"></div>
             </div>
-            <label>Borders: <input id="borders" type="checkbox" checked></label>
         </div>
     </div>
 
     <script>
         const legendDiv = document.getElementById('legend');
-        const bordersCheckbox = document.getElementById('borders');
         const slider = document.getElementById('slider');
         const sliderValue = document.getElementById('slider-value');
         const layerName = 'states-layer'
@@ -171,7 +169,7 @@
                 const namesSpr = sprData.map(d => d.State)
                 const min = Math.min(...avrPrice)
                 const max = Math.max(...avrPrice)
-                const myColor = d3.scaleLinear().domain([min, max]).range(["orange", "red"])
+                const myColor = d3.scaleLinear().domain([min, max]).range(["#B3d92b", "#47b970"])
 
                 generateLegend(min, max, legendDiv, myColor)
 
@@ -186,18 +184,9 @@
                         }
                     }
                 });
-                console.log('mapData', mapData);
-                map.getSource("states").setData(mapData)
+                const noPR = mapData.features.filter(el => el.properties.NAME !== 'Puerto Rico' && el.properties.NAME !== 'Virgin Islands')
+                map.getSource("states").setData(turf.featureCollection(noPR))
 
-                // map.setPaintProperty(layerName, "fill-color", [
-                //     'case',
-                //     ...filtersArray,
-                //     "transparent"
-                // ])
-
-                // map.setPaintProperty(layerName, "fill-opacity", 0.7)
-                //map.setPaintProperty(layerName, "fill-outline-color", "white")
-                //map.setPaintProperty(layerName, "fill-outline-color", "transparent")
             })
 
             map.on("click", layerName, e => {
@@ -209,21 +198,14 @@
                 const res = mainData.sprData
                     .find(spr => spr.State === stateISO)
 
-                // const value = (+res['Total']).toLocaleString('en-US', {
-                //     style: 'currency',
-                //     currency: 'USD',
-                // }).replace("$", "")
-
-                console.log('props', props);
-
                 const text = `
                         <div class="popup-main">
                             <h2>${stateName}</h2>
-                            <div><b>Savings / Month (DG+)</b>: ${props['Savings / Month (DG+)']} MW</div>
-                            <div><b>Max. State EV Incentive (DG+)</b>: ${props['State EVSE Rebate(DG +)']} MW</div>
-                            <div><b>State EVSE Rebate (DG+)</b>: ${props['Savings / Month (DG+)']} MW</div>
-                            <div><b>Avg. Retail Cost of Electricity, $/kWh (EIA)</b>: ${props['Avg. Retail Cost of Electricity, $/kWh (EIA)']} MW</div>
-                            <div><b>Avg. Cost / Gallon of Gas (EIA)</b>: ${props['Avg. Cost / Gallon of Gas (EIA)']} MW</div>
+                            <div><b>Savings / Month (DG+)</b>: ${props['Savings / Month (DG+)']} </div>
+                            <div><b>Max. State EV Incentive (DG+)</b>: ${props['Max. State EV Incentive (DG+)']} </div>
+                            <div><b>State EVSE Rebate (DG+)</b>: ${props['Savings / Month (DG+)']} </div>
+                            <div><b>Avg. Retail Cost of Electricity, $/kWh (EIA)</b>: ${props['Avg. Retail Cost of Electricity, $/kWh (EIA)']} </div>
+                            <div><b>Avg. Cost / Gallon of Gas (EIA)</b>: ${props['Avg. Cost / Gallon of Gas (EIA)']} </div>
                         </div>
                         `
                 new mapboxgl.Popup()
@@ -242,26 +224,10 @@
                 map.getCanvas().style.cursor = '';
             });
 
-            bordersCheckbox.addEventListener('input', (e) => {
-                const val = bordersCheckbox.checked ? "white" : "transparent"
-                map.setPaintProperty(layerName, "fill-outline-color", val)
-            })
-
-            // slider.addEventListener('input', (e) => {
-            //     map.setPaintProperty(
-            //         layerName,
-            //         'fill-opacity',
-            //         parseInt(e.target.value, 10) / 100
-            //     );
-            //     // Value indicator
-            //     sliderValue.textContent = e.target.value + '%';
-            // });
-
         });
 
         function generateLegend(min, max, legendDiv, colorFunc) {
 
-            console.log('min,max', min, max);
             const step = 25
             const stepCount = Math.ceil(max / step)
             const divs = [...Array(stepCount).keys()].map((d, key) => {
@@ -275,7 +241,7 @@
 
                 const text = document.createElement("div")
                 text.className = "square-text"
-                text.innerText = (step * (key + 1)) > max ? `${val} + ` : `${val} - ${step * (key + 1)}`
+                text.innerText = (step * (key + 1)) > max ? `$${val} + ` : `$${val} - $${step * (key + 1)}`
 
                 const sq = document.createElement("div")
                 sq.className = "square"
@@ -292,7 +258,6 @@
         }
 
         function clear(str) {
-            // console.log('str', str);
             if (!str) return "";
             return str.replaceAll(/[\,\.]/g, " ").replace(/[\s]{2,}/, " ").trim().toLowerCase()
         }
